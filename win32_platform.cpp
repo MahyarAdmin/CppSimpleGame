@@ -32,7 +32,15 @@ LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
         case WM_DESTROY: {
             running = false;
             return 0;
-        }
+        } break;
+
+        case WM_SIZE: {
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            int width = rect.right - rect.left;
+            int height = rect.bottom - rect.top;
+        } break;
+
         default: {
             result = DefWindowProc(hwnd, uMsg, wParam, lParam);
         }
