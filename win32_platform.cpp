@@ -25,7 +25,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
         }
 
         clear_screen(0x000000);
-        draw_rect(50, 50, 200, 200, 0xff5500);
+        draw_rect(0, 0, 10, 10, 0xff5500);
         StretchDIBits(hdc, 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
