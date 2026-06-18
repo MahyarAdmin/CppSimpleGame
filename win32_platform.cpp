@@ -1,9 +1,14 @@
 #include <windows.h>
 
+struct render{
+    int width, height;
+    void* memory = nullptr;
+
+    BITMAPINFO bitmap_info;
+};
+
 bool running = true;
-int buffer_width, buffer_height;
-void *memoryBuffer;
-BITMAPINFO bitmap_info;
+render renderData;
 
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -26,14 +31,14 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             DispatchMessage(&msg);
         }
 
-        unsigned int* pixel = (unsigned int*)memoryBuffer;
-        for(int y = 0; y < buffer_height; y++) {
-            for(int x = 0; x < buffer_width; x++) {
+        unsigned int* pixel = (unsigned int*)renderData.memory;
+        for(int y = 0; y < renderData.height; y++) {
+            for(int x = 0; x < renderData.width; x++) {
                 *pixel++ = 0xff00ff * x + 0x00ff00 * y;
             }
         }
 
-        StretchDIBits(hdc, 0, 0, buffer_width, buffer_height, 0, 0, buffer_width, buffer_height, memoryBuffer, &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
+        StretchDIBits(hdc, 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
 }
@@ -52,20 +57,20 @@ LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
             GetClientRect(hwnd, &rect);
 
-            buffer_width = rect.right - rect.left;
-            buffer_height = rect.bottom - rect.top;
+            renderData.width = rect.right - rect.left;
+            renderData.height = rect.bottom - rect.top;
 
-            int buffer_windowSize = buffer_height * buffer_width * sizeof(unsigned int);
+            int buffer_windowSize = renderData.height * renderData.width * sizeof(unsigned int);
 
-            if(memoryBuffer) VirtualFree(memoryBuffer, 0, MEM_RELEASE);
-            memoryBuffer = VirtualAlloc(0, buffer_windowSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            if(renderData.memory) VirtualFree(renderData.memory, 0, MEM_RELEASE);
+            renderData.memory = VirtualAlloc(0, buffer_windowSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 
-            bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
-            bitmap_info.bmiHeader.biWidth = buffer_width;
-            bitmap_info.bmiHeader.biHeight = buffer_height;
-            bitmap_info.bmiHeader.biPlanes = 1;
-            bitmap_info.bmiHeader.biBitCount = 32;
-            bitmap_info.bmiHeader.biCompression = BI_RGB;
+            renderData.bitmap_info.bmiHeader.biSize = sizeof(renderData.bitmap_info.bmiHeader);
+            renderData.bitmap_info.bmiHeader.biWidth = renderData.width;
+            renderData.bitmap_info.bmiHeader.biHeight = renderData.height;
+            renderData.bitmap_info.bmiHeader.biPlanes = 1;
+            renderData.bitmap_info.bmiHeader.biBitCount = 32;
+            renderData.bitmap_info.bmiHeader.biCompression = BI_RGB;
         } break;
 
         default: {
