@@ -23,9 +23,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-
-        clear_screen(0x000000);
-        draw_rect(0, 0, 10, 10, 0xff5500);
+        clear_screen(0xffffff); 
+        draw_rect(0, 0, 10, 10, 0x0000ff);
         StretchDIBits(hdc, 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
