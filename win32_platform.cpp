@@ -1,14 +1,7 @@
 #include <windows.h>
-
-struct render{
-    int width, height;
-    void* memory = nullptr;
-
-    BITMAPINFO bitmap_info;
-};
+#include "render.cpp"
 
 bool running = true;
-render renderData;
 
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -31,13 +24,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             DispatchMessage(&msg);
         }
 
-        unsigned int* pixel = (unsigned int*)renderData.memory;
-        for(int y = 0; y < renderData.height; y++) {
-            for(int x = 0; x < renderData.width; x++) {
-                *pixel++ = 0xff00ff * x + 0x00ff00 * y;
-            }
-        }
-
+        clear_screen(0x000000);
+        draw_rect(50, 50, 200, 200, 0xff5500);
         StretchDIBits(hdc, 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
