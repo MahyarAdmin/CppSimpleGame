@@ -1,6 +1,9 @@
 #include <windows.h>
 
 bool running = true;
+int buffer_width, buffer_height;
+void *memoryBuffer;
+BITMAPINFO bitmap_info;
 
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -13,7 +16,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
 
     RegisterClass(&windows_class);
 
-    CreateWindow(windows_class.lpszClassName, TEXT("My first ever game"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, 0, 0, hInstance, 0);
+    HWND window =  CreateWindow(windows_class.lpszClassName, TEXT("My first ever game"), WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT, CW_USEDEFAULT, 1280, 720, 0, 0, hInstance, 0);
+    HDC hdc = GetDC(window);
 
     while(running) {
         MSG msg = {};
@@ -21,6 +25,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        StretchDIBits(hdc, 0, 0, buffer_width, buffer_height, 0, 0, buffer_width, buffer_height, memoryBuffer, &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
 }
@@ -36,9 +41,23 @@ LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
         case WM_SIZE: {
             RECT rect;
+
             GetClientRect(hwnd, &rect);
-            int width = rect.right - rect.left;
-            int height = rect.bottom - rect.top;
+
+            buffer_width = rect.right - rect.left;
+            buffer_height = rect.bottom - rect.top;
+
+            int buffer_windowSize = buffer_height * buffer_width * sizeof(unsigned int);
+
+            if(memoryBuffer) VirtualFree(memoryBuffer, 0, MEM_RELEASE);
+            memoryBuffer = VirtualAlloc(0, buffer_windowSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+            bitmap_info.bmiHeader.biSize = sizeof(bitmap_info.bmiHeader);
+            bitmap_info.bmiHeader.biWidth = buffer_width;
+            bitmap_info.bmiHeader.biHeight = buffer_height;
+            bitmap_info.bmiHeader.biPlanes = 1;
+            bitmap_info.bmiHeader.biBitCount = 32;
+            bitmap_info.bmiHeader.biCompression = BI_RGB;
         } break;
 
         default: {
