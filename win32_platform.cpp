@@ -25,6 +25,14 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        unsigned int* pixel = (unsigned int*)memoryBuffer;
+        for(int y = 0; y < buffer_height; y++) {
+            for(int x = 0; x < buffer_width; x++) {
+                *pixel++ = 0xff00ff * x + 0x00ff00 * y;
+            }
+        }
+
         StretchDIBits(hdc, 0, 0, buffer_width, buffer_height, 0, 0, buffer_width, buffer_height, memoryBuffer, &bitmap_info, DIB_RGB_COLORS, SRCCOPY);
     }
     return 0;
