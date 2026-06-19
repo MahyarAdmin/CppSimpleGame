@@ -62,3 +62,10 @@ void draw_rect(float x, float y, float halfSizeX, float halfSizeY, unsigned int 
 
     draw_rectPix(x0, y0, x1, y1, color);
 }
+
+void renderBufferMaxMin(int* x, int* y) {
+    float scaleFactor = renderData.height * RENDER_SCALE;
+
+    *x = renderData.width / (2.f * scaleFactor);
+    *y = 1.f / (2.f * RENDER_SCALE);
+}
