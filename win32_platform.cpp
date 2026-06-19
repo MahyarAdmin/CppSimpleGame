@@ -1,10 +1,23 @@
+//Include
 #include <windows.h>
 #include <functional>
+#include <sstream>
+#include <chrono>
+
+//local include
 #include "render.cpp"
 
-LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+//global variable
 bool runState = true;
 
+//global define
+const float PLAYER_SPEED = 500.f;
+const float PLAYER_SIZE = 5.f;
+
+//function signature 
+LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+
+//class
 class WindowMessage{
     MSG msg = {};
 public:
@@ -75,32 +88,77 @@ public:
     HWND getHWND() const { return hWnd; }
 };
 
-void gamerender(void) {
-}
-
+//main API function
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nShowCmd) {
 
     Window window;
     WindowMessage message;
+    std::wstringstream ss;
     window.setWindowAtt(CS_HREDRAW | CS_VREDRAW, L"GameWindowClass", windows_callback, hInstance);
     window.registerWindow();
     if(!window.createWindow(L"My first game", 1280, 720))return -1;
+
+
+    int x = 0, y = 0;
+    int maxX = 0,maxY = 0; 
+
+    std::chrono::high_resolution_clock::time_point frameCounter, frameCounterTemp, time, timeTemp = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> Elapsed, frameDuration;
+    int fpsCount = 0;
+    float FPS;
+    
+
     while(runState) {
 
         message.messageHandler();
 
         clear_screen(0xffffff); 
-        draw_rect(0, 0, 1, 1, 0x0000ff);
+        draw_rect(x, y, PLAYER_SIZE, PLAYER_SIZE, 0x0000ff);
         StretchDIBits(window.getDC(), 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
+        
+        fpsCount++;
+
+        frameCounter = time = std::chrono::high_resolution_clock::now();
+
+        frameDuration = frameCounter - frameCounterTemp;
+        float playerSpeedDelta = frameDuration.count();
+
+        frameCounterTemp = frameCounter;
+
+        Elapsed = time - timeTemp;
+
+        if(Elapsed.count() >= 1.f) {
+            FPS = (float)fpsCount / Elapsed.count();
+            fpsCount = 0;
+            timeTemp = time;
+        }
+
+        if(GetAsyncKeyState('D') & 0x8000) x += (PLAYER_SPEED * playerSpeedDelta);
+        if(GetAsyncKeyState('A') & 0x8000) x -= (PLAYER_SPEED * playerSpeedDelta);
+        if(GetAsyncKeyState('W') & 0x8000) y += (PLAYER_SPEED * playerSpeedDelta);
+        if(GetAsyncKeyState('S') & 0x8000) y -= (PLAYER_SPEED * playerSpeedDelta);
+
+        renderBufferMaxMin(&maxX, &maxY);
+        maxX -= PLAYER_SIZE;
+        maxY -= PLAYER_SIZE;
+        x = clampData(-maxX, x, maxX);
+        y = clampData(-maxY, y, maxY);
+
+        ss << L"FPS is:" << (int)FPS << L", X is:" << x << L", Y is:" << y << L", Window width:" << renderData.width << L", Window height:" << renderData.height;
+        std::wstring string = ss.str();
+
+        SetTextColor(window.getDC(), RGB(255, 0, 0));
+        SetBkMode(window.getDC(), TRANSPARENT); 
+        TextOutW(window.getDC(), 20, 20, string.c_str(), (int) string.length());
+
+        ss.str(L"");
+        ss.clear();
     }
     
-
-    
-    
-
     return 0;
 }
 
+//function decelration
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = {};
     switch (uMsg){
