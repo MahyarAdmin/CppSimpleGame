@@ -11,11 +11,14 @@
 bool runState = true;
 
 //global define
-const float PLAYER_SPEED = 500.f;
-const float PLAYER_SIZE = 5.f;
+const float PLAYER_SPEED = 100.f;
+const float PLAYER_SIZE = 10.f;
 
 //function signature 
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+void wStringTypeshowMessageOnScreen(HDC hdc, COLORREF textColor, const int mode, int x, int y, LPCWSTR string, const int stringLen);
+std::wstring wStringStreamData(std::wstringstream& ss);
+void wStringStreamClear(std::wstringstream& ss);
 
 //class
 class WindowMessage{
@@ -99,8 +102,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
     if(!window.createWindow(L"My first game", 1280, 720))return -1;
 
 
-    int x = 0, y = 0;
-    int maxX = 0,maxY = 0; 
+    float x = 0.f, y = 0.f;
+    float maxX = 0,maxY = 0; 
 
     std::chrono::high_resolution_clock::time_point frameCounter, frameCounterTemp, time, timeTemp = std::chrono::high_resolution_clock::now();
     std::chrono::duration<float> Elapsed, frameDuration;
@@ -133,10 +136,12 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
             timeTemp = time;
         }
 
-        if(GetAsyncKeyState('D') & 0x8000) x += (PLAYER_SPEED * playerSpeedDelta);
-        if(GetAsyncKeyState('A') & 0x8000) x -= (PLAYER_SPEED * playerSpeedDelta);
-        if(GetAsyncKeyState('W') & 0x8000) y += (PLAYER_SPEED * playerSpeedDelta);
-        if(GetAsyncKeyState('S') & 0x8000) y -= (PLAYER_SPEED * playerSpeedDelta);
+        float playerStep = PLAYER_SPEED * playerSpeedDelta;
+
+        if(GetAsyncKeyState('D') & 0x8000) x += playerStep;
+        if(GetAsyncKeyState('A') & 0x8000) x -= playerStep;
+        if(GetAsyncKeyState('W') & 0x8000) y += playerStep;
+        if(GetAsyncKeyState('S') & 0x8000) y -= playerStep;
 
         renderBufferMaxMin(&maxX, &maxY);
         maxX -= PLAYER_SIZE;
@@ -144,21 +149,32 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nS
         x = clampData(-maxX, x, maxX);
         y = clampData(-maxY, y, maxY);
 
-        ss << L"FPS is:" << (int)FPS << L", X is:" << x << L", Y is:" << y << L", Window width:" << renderData.width << L", Window height:" << renderData.height;
-        std::wstring string = ss.str();
+        ss << L"FPS is:" << FPS << L", X is:" << x << L", Y is:" << y << L", Window width:" << renderData.width << L", Window height:" << renderData.height;
+        std::wstring string = wStringStreamData(ss);
+        wStringTypeshowMessageOnScreen(window.getDC(), RGB(255, 0, 0), TRANSPARENT, 20, 20, string.c_str(), (int)string.length());
+        wStringStreamClear(ss);
 
-        SetTextColor(window.getDC(), RGB(255, 0, 0));
-        SetBkMode(window.getDC(), TRANSPARENT); 
-        TextOutW(window.getDC(), 20, 20, string.c_str(), (int) string.length());
-
-        ss.str(L"");
-        ss.clear();
     }
     
     return 0;
 }
 
 //function decelration
+void wStringStreamClear(std::wstringstream& ss) {
+    ss.str(L"");
+    ss.clear();
+}
+
+std::wstring wStringStreamData(std::wstringstream& ss) {
+    return ss.str();
+}
+
+void wStringTypeshowMessageOnScreen(HDC hdc, COLORREF textColor, const int mode, int x, int y, LPCWSTR string, const int stringLen) {
+        SetTextColor(hdc, textColor);
+        SetBkMode(hdc, mode); 
+        TextOutW(hdc, x, y, string, stringLen);
+}
+
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = {};
     switch (uMsg){
