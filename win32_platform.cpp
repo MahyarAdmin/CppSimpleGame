@@ -2,7 +2,8 @@
 #include <windows.h>
 #include <functional>
 #include <sstream>
-#include <chrono>
+#include <map>
+#include <vector>
 
 //local include
 #include "render.cpp"
@@ -11,8 +12,14 @@
 bool runState = true;
 
 //global define
-const float PLAYER_SPEED = 100.f;
-const float PLAYER_SIZE = 10.f;
+const float PLAYER_SPEED = 40.f;
+const float PLAYER_SIZE = 5.f;
+const float GRAVITY_CONST_SPEED = 0.02f;
+const float GRAVITY_SPEED = 0.2f;
+const float JUMP_BOND = -20.f;
+const float JUMP_SPEED = 2.f;
+const float GRAVITY = 30.0f;
+const float JUMP_STRENGTH = 45.0f;
 
 //function signature 
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -91,67 +98,158 @@ public:
     HWND getHWND() const { return hWnd; }
 };
 
+class GameCharacter{
+float x;
+float y;
+float playerSize;
+float playerSpeed;
+public:
+    GameCharacter(float __x = 0.f, float __y = 0.f, float __playerSize = 1.f, float __playerSpeed = 1.f) 
+    : x(__x), y(__y), playerSize(__playerSize), playerSpeed(__playerSpeed) {}
+    float getCordinateX(void) const {
+        return x;
+    }
+    float getCordinateY(void) const {
+        return y;
+    }
+    void setCordinate(const float x, const float y) {
+        this -> x = x;
+        this -> y = y;
+    }
+    void setPlayerSize(const float size) {
+        playerSize = size;
+    }
+    float getPlayerSize(void) const {
+        return playerSize;
+    }
+    void setPlayerSpeed(const float speed) {
+        playerSpeed = speed;
+    }
+    float getPlayerSpeed(void) const {
+        return playerSpeed;
+    }
+};
+
+class Cube : public GameCharacter {
+unsigned int color;
+public:
+    void setColor(const unsigned int color) {
+        this -> color = color;
+    }
+    unsigned int getColor(void) const {
+        return color;
+    }
+};
+
+template<class T>
+class FPSTimer : public Util::Time::Timer<T> {
+public:
+    T fpsCount = 0;
+    T FPS = 0;
+};
 //main API function
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine,int nShowCmd) {
 
     Window window;
     WindowMessage message;
     std::wstringstream ss;
+    Util::Time::Timer<float> frameCounter;
+    FPSTimer<float> FPS;
+    Util::Time::Timer<float> keyPressOffset;
+
     window.setWindowAtt(CS_HREDRAW | CS_VREDRAW, L"GameWindowClass", windows_callback, hInstance);
     window.registerWindow();
     if(!window.createWindow(L"My first game", 1280, 720))return -1;
 
+    FPS.SetNow();
+    FPS.SetAndSave();
+    frameCounter.SetNow();
+    frameCounter.SetAndSave();
+    keyPressOffset.SetNow();
+    keyPressOffset.SetAndSave();
+
+    // std::chrono::high_resolution_clock::time_point frameCounter = std::chrono::high_resolution_clock::now()
+    // , frameCounterTemp = std::chrono::high_resolution_clock::now()
+    // , time = std::chrono::high_resolution_clock::now()
+    // , timeTemp = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<float> Elapsed, frameDuration;
+    // int fpsCount = 0;
+    // float FPS = 0;
+
+    std::wstring string;
+    
+    Cube cube1;
+    cube1.setColor(0x0000ff);
 
     float x = 0.f, y = 0.f;
-    float maxX = 0,maxY = 0; 
-
-    std::chrono::high_resolution_clock::time_point frameCounter, frameCounterTemp, time, timeTemp = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> Elapsed, frameDuration;
-    int fpsCount = 0;
-    float FPS;
-    
+    float maxX = 0.f,maxY = 0.f;
+    float playerSpeedDelta = 0.f;
+    float playerStep = 0.f;
+    bool gravityLock = false, isKeyHold = false;
+    float velocityY = 0.0f;
+    bool isOnGround = true;
 
     while(runState) {
 
         message.messageHandler();
 
-        clear_screen(0xffffff); 
-        draw_rect(x, y, PLAYER_SIZE, PLAYER_SIZE, 0x0000ff);
-        StretchDIBits(window.getDC(), 0, 0, renderData.width, renderData.height, 0, 0, renderData.width, renderData.height, renderData.memory, &(renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
-        
-        fpsCount++;
+        cube1.setPlayerSize(PLAYER_SIZE);
+        cube1.setPlayerSpeed(PLAYER_SPEED);
 
-        frameCounter = time = std::chrono::high_resolution_clock::now();
+        Render::Basic::clear_screen(0xffffff);
+        Render::Shape::draw_rect(cube1.getCordinateX(), cube1.getCordinateY(), cube1.getPlayerSize(), cube1.getPlayerSize(), 0x0000ff);
+        StretchDIBits(window.getDC(), 0, 0, Render::Data::renderData.width, Render::Data::renderData.height, 0, 0, Render::Data::renderData.width, Render::Data::renderData.height, Render::Data::renderData.memory, &(Render::Data::renderData.bitmap_info), DIB_RGB_COLORS, SRCCOPY);
 
-        frameDuration = frameCounter - frameCounterTemp;
-        float playerSpeedDelta = frameDuration.count();
+        frameCounter.SetNow();
+        playerSpeedDelta = frameCounter.getDuration();
+        frameCounter.SetLast();
 
-        frameCounterTemp = frameCounter;
-
-        Elapsed = time - timeTemp;
-
-        if(Elapsed.count() >= 1.f) {
-            FPS = (float)fpsCount / Elapsed.count();
-            fpsCount = 0;
-            timeTemp = time;
+        FPS.SetNow();
+        FPS.fpsCount++;
+        if (FPS.getDuration() >= 1.f) {
+            FPS.FPS = FPS.fpsCount / FPS.getDuration();
+            FPS.fpsCount = 0;
+            FPS.SetLast();
         }
 
-        float playerStep = PLAYER_SPEED * playerSpeedDelta;
+        playerStep = cube1.getPlayerSpeed() * playerSpeedDelta;
 
-        if(GetAsyncKeyState('D') & 0x8000) x += playerStep;
-        if(GetAsyncKeyState('A') & 0x8000) x -= playerStep;
-        if(GetAsyncKeyState('W') & 0x8000) y += playerStep;
-        if(GetAsyncKeyState('S') & 0x8000) y -= playerStep;
+        float groundLevel = -maxY;
 
-        renderBufferMaxMin(&maxX, &maxY);
+        if ((GetAsyncKeyState(VK_SPACE) & 0x8000) && isOnGround) {
+            velocityY = JUMP_STRENGTH;
+            isOnGround = false;
+        }
+
+        velocityY -= GRAVITY * playerSpeedDelta;
+        y += velocityY * playerSpeedDelta;
+
+        if (y <= groundLevel) {
+            y = groundLevel;
+            velocityY = 0.0f;
+            isOnGround = true;
+        }
+
+        
+
+
+        
+        // if(GetAsyncKeyState('D') & 0x8000) x += playerStep;
+        // if(GetAsyncKeyState('A') & 0x8000) x -= playerStep;
+        // if(GetAsyncKeyState('W') & 0x8000) y += playerStep;
+        // if(GetAsyncKeyState('S') & 0x8000) y -= playerStep;
+
+        Render::Algorithm::renderBufferMaxMin(&maxX, &maxY);
         maxX -= PLAYER_SIZE;
         maxY -= PLAYER_SIZE;
-        x = clampData(-maxX, x, maxX);
-        y = clampData(-maxY, y, maxY);
+        x = Util::Algorithm::clampData(-maxX, x, maxX);
+        y = Util::Algorithm::clampData(-maxY, y, maxY);
 
-        ss << L"FPS is:" << FPS << L", X is:" << x << L", Y is:" << y << L", Window width:" << renderData.width << L", Window height:" << renderData.height;
-        std::wstring string = wStringStreamData(ss);
-        wStringTypeshowMessageOnScreen(window.getDC(), RGB(255, 0, 0), TRANSPARENT, 20, 20, string.c_str(), (int)string.length());
+        cube1.setCordinate(x, y);
+
+        ss << L"FPS is:" << FPS.FPS << L", X is:" << x << L", Y is:" << y << L", Window width:" << Render::Data::renderData.width << L", Window height:" << Render::Data::renderData.height;
+        string = wStringStreamData(ss);
+        wStringTypeshowMessageOnScreen(window.getDC(), RGB(255, 0, 0), TRANSPARENT, 0, 0, string.c_str(), (int)string.length());
         wStringStreamClear(ss);
 
     }
@@ -178,6 +276,22 @@ void wStringTypeshowMessageOnScreen(HDC hdc, COLORREF textColor, const int mode,
 LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     LRESULT result = {};
     switch (uMsg){
+        // case WM_KEYDOWN: {
+        //     if(wParam == VK_UP){
+        //         PLAYER_SIZE++;
+        //     }
+        //     else if(wParam == VK_DOWN) {
+        //         PLAYER_SIZE--;
+        //     }
+        //     else if(wParam == VK_RIGHT) {
+        //         PLAYER_SPEED += 10;
+        //     }
+        //     else if(wParam == VK_LEFT) {
+        //         PLAYER_SPEED -= 10;
+        //     }
+        //     break;
+        // }
+
         case WM_CLOSE: {
             DestroyWindow(hwnd);
             return 0;
@@ -194,20 +308,20 @@ LRESULT CALLBACK windows_callback(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lP
 
             GetClientRect(hwnd, &rect);
 
-            renderData.width = rect.right - rect.left;
-            renderData.height = rect.bottom - rect.top;
+            Render::Data::renderData.width = rect.right - rect.left;
+            Render::Data::renderData.height = rect.bottom - rect.top;
+            if(Render::Data::renderData.width > 0 && Render::Data::renderData.height > 0) {
+                int buffer_windowSize = Render::Data::renderData.height * Render::Data::renderData.width * sizeof(unsigned int);
 
-            int buffer_windowSize = renderData.height * renderData.width * sizeof(unsigned int);
-
-            if(renderData.memory) VirtualFree(renderData.memory, 0, MEM_RELEASE);
-            renderData.memory = VirtualAlloc(0, buffer_windowSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-
-            renderData.bitmap_info.bmiHeader.biSize = sizeof(renderData.bitmap_info.bmiHeader);
-            renderData.bitmap_info.bmiHeader.biWidth = renderData.width;
-            renderData.bitmap_info.bmiHeader.biHeight = renderData.height;
-            renderData.bitmap_info.bmiHeader.biPlanes = 1;
-            renderData.bitmap_info.bmiHeader.biBitCount = 32;
-            renderData.bitmap_info.bmiHeader.biCompression = BI_RGB;
+                if(Render::Data::renderData.memory) VirtualFree(Render::Data::renderData.memory, 0, MEM_RELEASE);
+                Render::Data::renderData.memory = VirtualAlloc(0, buffer_windowSize, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+            }
+            Render::Data::renderData.bitmap_info.bmiHeader.biSize = sizeof(Render::Data::renderData.bitmap_info.bmiHeader);
+            Render::Data::renderData.bitmap_info.bmiHeader.biWidth = Render::Data::renderData.width;
+            Render::Data::renderData.bitmap_info.bmiHeader.biHeight = Render::Data::renderData.height;
+            Render::Data::renderData.bitmap_info.bmiHeader.biPlanes = 1;
+            Render::Data::renderData.bitmap_info.bmiHeader.biBitCount = 32;
+            Render::Data::renderData.bitmap_info.bmiHeader.biCompression = BI_RGB;
         } break;
 
         default: {
